@@ -657,42 +657,83 @@ function getHostIP(): string {
       
         // Étape 2: Si on a trouvé une interface principale, chercher son IP
         if (mainInterface) {
-          // Méthode 2.1: Chercher l'IP de cette interface dans /proc/net/arp
-          // ARP contient les IPs des interfaces avec leur device
+          // Méthode 2.1: Lire le MAC de l'interface puis chercher l'IP dans ARP
+          console.log(`  Cherchant le MAC de ${mainInterface}...`);
+          let interfaceMAC: string | null = null;
+          try {
+            // Essayer avec /proc/1/root d'abord
+            let macFile = `/proc/1/root/sys/class/net/${mainInterface}/address`;
+            if (!fs.existsSync(macFile)) {
+              macFile = `/host/sys/class/net/${mainInterface}/address`;
+            }
+            if (!fs.existsSync(macFile)) {
+              macFile = `/sys/class/net/${mainInterface}/address`;
+            }
+            
+            if (fs.existsSync(macFile)) {
+              interfaceMAC = fs.readFileSync(macFile, "utf-8").trim();
+              console.log(`  MAC de ${mainInterface}: ${interfaceMAC}`);
+            }
+          } catch (e: any) {
+            console.log(`  Erreur lecture MAC: ${e.message}`);
+          }
+          
+          // Méthode 2.2: Chercher l'IP de cette interface dans /proc/net/arp
+          // ARP contient les IPs des interfaces avec leur device et MAC
           console.log(`  Cherchant l'IP de ${mainInterface} dans ARP...`);
           const arpForInterface = readHostFile("/proc/net/arp", () => "");
           if (arpForInterface && arpForInterface.length > 0) {
             const arpLines = arpForInterface.split("\n");
             for (let j = 1; j < arpLines.length; j++) {
               const arpParts = arpLines[j].trim().split(/\s+/);
-              if (arpParts.length >= 6 && arpParts[5] === mainInterface) {
+              // Format: IP address   HW type   Flags   HW address   Mask   Device
+              //         192.168.0.19  0x1       0x2     aa:bb:cc:dd  *     eth0
+              if (arpParts.length >= 6) {
                 const arpIP = arpParts[0];
-                if (arpIP && arpIP.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
-                  const ipParts = arpIP.split(".");
-                  const firstOctet = parseInt(ipParts[0]);
-                  const secondOctet = parseInt(ipParts[1]);
-                  const isDockerIP = firstOctet === 172 && secondOctet >= 16 && secondOctet <= 31;
-                  
-                  if (arpIP !== "127.0.0.1" && arpIP !== "0.0.0.0" && !isDockerIP) {
-                    console.log(`✓ IP depuis ARP pour ${mainInterface}: ${arpIP}`);
-                    return arpIP;
+                const arpMAC = arpParts[3];
+                const arpDevice = arpParts[5];
+                
+                // Vérifier que c'est bien notre interface
+                if (arpDevice === mainInterface) {
+                  if (arpIP && arpIP.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+                    // Si on a le MAC, vérifier qu'il correspond
+                    if (interfaceMAC && arpMAC !== interfaceMAC) {
+                      console.log(`  MAC ne correspond pas: ${arpMAC} vs ${interfaceMAC}`);
+                      continue;
+                    }
+                    
+                    const ipParts = arpIP.split(".");
+                    const firstOctet = parseInt(ipParts[0]);
+                    const secondOctet = parseInt(ipParts[1]);
+                    const isDockerIP = firstOctet === 172 && secondOctet >= 16 && secondOctet <= 31;
+                    
+                    if (arpIP !== "127.0.0.1" && arpIP !== "0.0.0.0" && !isDockerIP) {
+                      console.log(`✓ IP depuis ARP pour ${mainInterface}: ${arpIP}`);
+                      return arpIP;
+                    }
                   }
                 }
               }
             }
           }
           
-          // Méthode 2.2: Chercher toutes les routes de cette interface pour trouver une IP source valide
+          // Méthode 2.3: Chercher l'IP dans les routes, mais ignorer les masques (colonne 7)
+          // Format: Iface Destination Gateway Flags RefCnt Use Metric Mask MTU Window IRTT
+          // La colonne 7 est le masque, pas l'IP. On ne doit pas la prendre.
+          console.log(`  Cherchant l'IP dans les routes de ${mainInterface} (en ignorant les masques)...`);
           const interfaceIPs: string[] = [];
           for (let i = 1; i < lines.length; i++) {
             const parts = lines[i].trim().split(/\s+/);
             if (parts.length >= 3 && parts[0] === mainInterface) {
-              // La colonne "Gateway" (index 2) peut contenir l'IP de l'interface dans certains cas
-              // Mais généralement, on doit chercher ailleurs
+              // Colonne 2 = Gateway (peut être utile)
+              // Colonne 7 = Mask (à ignorer - ce sont des masques comme 255.255.0.0)
+              // On ne prend que les colonnes qui pourraient être des IPs (pas les masques)
               
-              // Pour certaines routes, l'IP source peut être dans une autre colonne
-              // Essayons de lire toutes les colonnes hexadécimales
+              // Ignorer la colonne 7 (masque) et chercher ailleurs
               for (let col = 2; col < Math.min(parts.length, 8); col++) {
+                // Ignorer la colonne 7 qui est le masque
+                if (col === 7) continue;
+                
                 const hexValue = parts[col];
                 if (hexValue && hexValue.length === 8 && hexValue !== "00000000" && /^[0-9a-fA-F]{8}$/.test(hexValue)) {
                   try {
@@ -702,6 +743,18 @@ function getHostIP(): string {
                       parseInt(hexValue.substring(2, 4), 16),
                       parseInt(hexValue.substring(0, 2), 16),
                     ].join(".");
+                    
+                    // Filtrer les masques de sous-réseau communs
+                    const isSubnetMask = ip === "255.255.255.255" || 
+                                        ip === "255.255.255.0" || 
+                                        ip === "255.255.0.0" || 
+                                        ip === "255.0.0.0" ||
+                                        ip.startsWith("255.");
+                    
+                    if (isSubnetMask) {
+                      console.log(`  Ignoré (masque): ${ip}`);
+                      continue;
+                    }
                     
                     const ipParts = ip.split(".");
                     const firstOctet = parseInt(ipParts[0]);
