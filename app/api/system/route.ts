@@ -961,6 +961,7 @@ export async function GET() {
     console.log("Volumes hôte montés?", hostMounted);
 
     const memory = getHostMemory();
+    const cpuInfo = getHostCPUInfo();
     const cpuUsage = getHostCPUUsage();
     const diskUsage = getHostDiskUsage();
 
@@ -988,7 +989,10 @@ export async function GET() {
         available: memory.available,
         used: memory.total - memory.available,
       },
-      cpuUsage,
+      cpu: {
+        count: cpuInfo.count,
+        usage: cpuUsage,
+      },
       disk: {
         total: diskTotal,
         used: diskUsed,

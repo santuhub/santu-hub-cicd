@@ -10,7 +10,10 @@ interface SystemData {
     available: number;
     used: number;
   };
-  cpuUsage: number;
+  cpu: {
+    count: number;
+    usage: number;
+  };
   disk: {
     total: number;
     used: number;
@@ -75,7 +78,8 @@ export default function SystemInfo() {
   const availableMem = systemData.memory.available / 1024 / 1024 / 1024;
   const memUsagePercent = (usedMem / totalMem) * 100;
   
-  const cpuUsagePercent = systemData.cpuUsage || 0;
+  const cpuCount = systemData.cpu.count || 0;
+  const cpuUsagePercent = systemData.cpu.usage || 0;
   
   const totalDisk = systemData.disk.total / 1024 / 1024 / 1024;
   const usedDisk = systemData.disk.used / 1024 / 1024 / 1024;
@@ -120,7 +124,7 @@ export default function SystemInfo() {
             CPU
           </h2>
           <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            {cpuUsagePercent.toFixed(1)}%
+            {cpuCount}
           </div>
         </div>
         <div className="relative h-4 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden border border-gray-300 dark:border-gray-700 mb-3">
@@ -132,7 +136,10 @@ export default function SystemInfo() {
           </div>
         </div>
         <div className="text-xs text-gray-600 dark:text-gray-400">
-          Utilisation: {cpuUsagePercent.toFixed(1)}%
+          <div className="flex justify-between">
+            <span>Cœurs: {cpuCount}</span>
+            <span>Utilisation: {cpuUsagePercent.toFixed(1)}%</span>
+          </div>
         </div>
       </div>
 
