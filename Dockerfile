@@ -16,7 +16,9 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Build de l'application Next.js
-RUN pnpm run build
+RUN pnpm run build && \
+    pnpm store prune && \
+    rm -rf /root/.local/share/pnpm/store
 
 # Stage 2: Production
 FROM node:22-alpine AS runner
@@ -38,7 +40,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Installer uniquement les dépendances de production
-RUN pnpm install --prod --frozen-lockfile
+# Utiliser --no-store-dir pour éviter de stocker dans le store global
+# et nettoyer le cache après installation
+RUN pnpm install --prod --frozen-lockfile --no-store-dir && \
+    pnpm store prune && \
+    rm -rf /root/.local/share/pnpm/store && \
+    rm -rf /tmp/*
 
 USER nextjs
 
