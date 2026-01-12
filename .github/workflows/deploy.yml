@@ -69,11 +69,11 @@ jobs:
 
       # Étape 4: Afficher le contenu du fichier .env pour débugger
       # Cela nous permet de vérifier que toutes les variables sont bien définies
-      - name: Debug .env
-        run: |
-          echo "------ Contenu de .env ------"
-          cat .env
-          echo "----------------------------------------"
+      # - name: Debug .env
+      #   run: |
+      #     echo "------ Contenu de .env ------"
+      #     cat .env
+      #     echo "----------------------------------------"
 
       # Étape 5: Se connecter au registre Docker GitHub Container Registry
       # Cette authentification est nécessaire pour publier l'image Docker
