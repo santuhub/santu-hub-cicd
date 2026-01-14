@@ -4,7 +4,7 @@ name: Build Workflow
 on:
   push:
     branches:
-      - main
+      - main-v2
 
 # Variables d'environnement partagées par tous les jobs
 env:
