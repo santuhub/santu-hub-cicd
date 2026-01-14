@@ -81,8 +81,13 @@ jobs:
         run: |
           set -eo pipefail
 
-          # Se connecter au serveur via SSH et exécuter les commandes de déploiement
-          ssh -o StrictHostKeyChecking=no ip172-18-0-236-d5ilk00l2o9000fkd2t0@direct.labs.play-with-docker.com << EOF
+          # Créer le dossier SSH et configurer la clé privée
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Se connecter au serveur production via SSH et exécuter les commandes de déploiement
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_HOST }} << EOF
             CONTAINER_NAME="${{ github.event.repository.name }}"
             IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
             
