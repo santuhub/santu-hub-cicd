@@ -97,10 +97,11 @@ jobs:
             docker pull $IMAGE_TAG
 
             # Démarrage du nouveau conteneur avec les configurations nécessaires
-            # Options : mapping des ports, variables d'environnement, redémarrage automatique
+            # Options : mapping des ports (externe:interne), variables d'environnement, redémarrage automatique
+            # Le port interne est toujours 3000 (défini dans le Dockerfile), le port externe est configurable
             echo "Démarrage du conteneur..."
             docker run -d --name $CONTAINER_NAME \
-              -p ${{ vars.CONTAINER_PORT }}:${{ vars.CONTAINER_PORT }} \
+              -p ${{ vars.CONTAINER_PORT }}:3000 \
               -e CONTAINER_PORT="${{ vars.CONTAINER_PORT }}" \
               -e SSH_HOST="${{ vars.SSH_HOST }}" \
               -e SSH_PORT="${{ vars.SSH_PORT }}" \
