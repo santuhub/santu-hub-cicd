@@ -52,8 +52,8 @@ name: Build Santu Hub CICD
 on:
   push:
     branches:
-      # - main
-      # - develop
+      - main
+      - develop
 
 # Variables d'environnement partagées par tous les jobs
 env:

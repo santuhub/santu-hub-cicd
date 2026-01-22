@@ -32,7 +32,7 @@
 # - GITHUB_TOKEN : Token d'authentification (définie automatiquement)
 # - GITHUB_HEAD_REF : Branche source de la PR (si dans une Pull Request)
 # - GITHUB_REF : Référence Git (pour extraire le numéro de PR)
-# - GITHUB_REPOSITORY : Nom du repository (ex: ${github_account}/santu-hub-cicd)
+# - GITHUB_REPOSITORY : Nom du repository (ex: $santuhub/santu-hub-cicd)
 #
 # DÉCLENCHEMENT:
 # ==============
@@ -44,7 +44,7 @@
 # Définir les variables
 IMAGE_NAME="santu-hub-cicd"
 REGISTRY="ghcr.io"
-REPO="${github_account}/santu-hub-cicd"
+REPO="santuhub/santu-hub-cicd"
 # Format de date JJ-MM-AA-HH-MM
 DATE_FORMAT=$(LC_TIME=fr_FR.UTF-8 TZ=Europe/Paris date +"%a_%d_%B_%Y_%Hh%M")
 
@@ -128,7 +128,7 @@ else
 
   # Connexion à GitHub Container Registry localement
   echo "Connexion à GitHub Container Registry avec le token PAT..."
-  echo $PAT_GITHUB_TOKEN | docker login ${REGISTRY} -u ${github_account} --password-stdin
+  echo $PAT_GITHUB_TOKEN | docker login ${REGISTRY} -u $santuhub --password-stdin
 fi
 
 # Tag de l'image avec la date
